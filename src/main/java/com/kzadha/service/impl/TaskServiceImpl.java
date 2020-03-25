@@ -38,6 +38,7 @@ public class TaskServiceImpl implements TaskService {
         final TaskEntity res = taskEntity;
         List<UserEntity> signers = userDAO.findByRoles(UserRole.ROLE_SIGNER);
         if (signers.size() > 0) {
+            // Every signer should sign
             List<UserTaskEntity> userTasks = signers.stream().map(s-> UserTaskEntity.builder().task(res).user(s).signed(false).build()).collect(Collectors.toList());
             userTasks.forEach(userTaskDAO::save);
             move(res.getId(), TaskStatus.ON_HOLD);
@@ -61,7 +62,7 @@ public class TaskServiceImpl implements TaskService {
         userTaskEntity.setSigned(true);
         userTaskDAO.save(userTaskEntity);
         if(userTaskDAO.findByTaskAndSigned(taskId, false).size() == 0){
-            userTaskEntity
+            move(taskId, TaskStatus.CONFIRMED);
         }
     }
 
@@ -72,8 +73,10 @@ public class TaskServiceImpl implements TaskService {
             if(userTaskDAO.findByTaskAndSigned(taskId, false).size() > 0){
                 throw new ConflictException("task is not signed by all signers yet");
             }
-        } else if (status.equals(TaskStatus.CONFIRMED)){
-
+        } else if (status.equals(TaskStatus.IN_PROGRESS) && !taskEntity.getStatus().equals(TaskStatus.CONFIRMED)){
+            throw new ConflictException("task should be confirmed before moving to progress");
+        } else if (status.equals(TaskStatus.FINISHED) && !taskEntity.getStatus().equals(TaskStatus.IN_PROGRESS)){
+            throw new ConflictException("task should be in progress before moving to finished");
         }
 
 
