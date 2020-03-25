@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Service
 @AllArgsConstructor
@@ -28,6 +29,13 @@ public class TaskServiceImpl implements TaskService {
     private final UserTaskDAO userTaskDAO;
     private final TaskMapper mapper;
 
+
+    @Override
+    public List<Task> getAll() {
+        return mapper.toModelList(StreamSupport
+                .stream(taskDAO.findAll().spliterator(), false)
+                .collect(Collectors.toList()));
+    }
 
     @Override
     public Task create(CreateTaskRequest request) {
