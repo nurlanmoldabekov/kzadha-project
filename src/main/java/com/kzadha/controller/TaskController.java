@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 
 @RestController
-@RequestMapping("/user")
+@RequestMapping("/task")
 public class TaskController {
     private static final Logger logger = LoggerFactory.getLogger(TaskController.class);
     @Autowired
