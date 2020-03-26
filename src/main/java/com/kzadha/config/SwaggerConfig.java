@@ -28,7 +28,7 @@ public class SwaggerConfig {
 
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
-                .title("Bookstad service API")
+                .title("Kzadha service API")
                 .version("1.0.0")
                 .build();
     }
