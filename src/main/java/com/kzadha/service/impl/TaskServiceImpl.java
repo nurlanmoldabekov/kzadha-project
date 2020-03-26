@@ -1,94 +1,107 @@
 package com.kzadha.service.impl;
 
-import com.kzadha.dao.TaskDAO;
-import com.kzadha.dao.UserDAO;
-import com.kzadha.dao.UserTaskDAO;
-import com.kzadha.entity.TaskEntity;
-import com.kzadha.entity.UserEntity;
-import com.kzadha.entity.UserTaskEntity;
-import com.kzadha.entity.UserTaskKey;
+import com.kzadha.dao.TaskRepository;
+import com.kzadha.dao.UserRepository;
 import com.kzadha.exception.ConflictException;
-import com.kzadha.mapper.TaskMapper;
 import com.kzadha.model.Task;
+import com.kzadha.model.User;
+import com.kzadha.model.UserTask;
 import com.kzadha.model.enums.TaskStatus;
 import com.kzadha.model.enums.UserRole;
-import com.kzadha.model.json.CreateTaskRequest;
+import com.kzadha.security.UserPrincipal;
 import com.kzadha.service.TaskService;
 import lombok.AllArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 @Service
 @AllArgsConstructor
 public class TaskServiceImpl implements TaskService {
-    private final TaskDAO taskDAO;
-    private final UserDAO userDAO;
-    private final UserTaskDAO userTaskDAO;
-    private final TaskMapper mapper;
+    private final TaskRepository taskRepository;
+    private final UserRepository userRepository;
 
 
     @Override
     public List<Task> getAll() {
-        return mapper.toModelList(StreamSupport
-                .stream(taskDAO.findAll().spliterator(), false)
-                .collect(Collectors.toList()));
+        return taskRepository.findAll();
     }
 
     @Override
-    public Task create(CreateTaskRequest request) {
-        UserEntity initiator = userDAO.findById(request.getUserId()).orElseThrow(() -> new ConflictException("initiator not found"));
-        TaskEntity taskEntity = TaskEntity.builder().user(initiator).description(request.getDescription()).status(TaskStatus.CREATED).build();
-        taskEntity = taskDAO.save(taskEntity);
+    public Task create(Task request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+
+        final Long newId = taskRepository.getNewId();
+        request.setStatus(TaskStatus.CREATED);
+        request.setId(newId);
+        request.setUserId(userPrincipal.getId());
+
+        taskRepository.insert(request);
+
         //if there are signers
-        final TaskEntity res = taskEntity;
-        List<UserEntity> signers = userDAO.findByRoles(UserRole.ROLE_SIGNER);
+        List<User> signers = userRepository.findByRole(UserRole.ROLE_SIGNER);
         if (signers.size() > 0) {
             // Every signer should sign
-            List<UserTaskEntity> userTasks = signers.stream().map(s-> UserTaskEntity.builder().task(res).user(s).signed(false).build()).collect(Collectors.toList());
-            userTasks.forEach(userTaskDAO::save);
-            move(res.getId(), TaskStatus.ON_HOLD);
+            List<UserTask> userTasks = signers.stream().map(s-> UserTask.builder().taskId(newId).userId(s.getId()).build()).collect(Collectors.toList());
+
+            userTasks.forEach(taskRepository::insertUserTask);
+            move(newId, TaskStatus.ON_HOLD);
         }
 
 
-        return mapper.toModel(taskDAO.save(taskEntity));
+        return taskRepository.findById(newId);
     }
 
     @Override
-    public Task setExecutor(Long userId, Long taskId) {
-        UserEntity executor = userDAO.findById(userId).orElseThrow(() -> new ConflictException("executor not found"));
-        TaskEntity taskEntity = taskDAO.findById(taskId).orElseThrow(() -> new ConflictException("task not found"));
-        taskEntity.setExecutor(executor);
-        return mapper.toModel(taskDAO.save(taskEntity));
+    public void setExecutor(Long userId, Long taskId) {
+        validateUserId(userId);
+        validateTaskId(taskId);
+        taskRepository.setExecutor(userId, taskId);
     }
 
     @Override
-    public void signTask(Long userId, Long taskId) {
-        UserTaskEntity userTaskEntity = userTaskDAO.findById(UserTaskKey.builder().taskId(taskId).userId(userId).build()).orElseThrow(() -> new ConflictException("usertask not found"));
-        userTaskEntity.setSigned(true);
-        userTaskDAO.save(userTaskEntity);
-        if(userTaskDAO.findByTaskAndSigned(taskId, false).size() == 0){
+    public void signTask(Long taskId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        validateTaskId(taskId);
+        taskRepository.updateSigned(userPrincipal.getId(), taskId, true);
+        if(taskRepository.findByTaskAndSigned(taskId, false) == 0){
             move(taskId, TaskStatus.CONFIRMED);
         }
     }
 
     @Override
     public void move(Long taskId, TaskStatus status) {
-        TaskEntity taskEntity = taskDAO.findById(taskId).orElseThrow(() -> new ConflictException("task not found"));
+        validateTaskId(taskId);
+        Task task = taskRepository.findById(taskId);
         if (status.equals(TaskStatus.CONFIRMED)){
-            if(userTaskDAO.findByTaskAndSigned(taskId, false).size() > 0){
+            if(taskRepository.findByTaskAndSigned(taskId, false) > 0){
                 throw new ConflictException("task is not signed by all signers yet");
             }
-        } else if (status.equals(TaskStatus.IN_PROGRESS) && !taskEntity.getStatus().equals(TaskStatus.CONFIRMED)){
+        } else if (status.equals(TaskStatus.IN_PROGRESS) && !task.getStatus().equals(TaskStatus.CONFIRMED)){
             throw new ConflictException("task should be confirmed before moving to progress");
-        } else if (status.equals(TaskStatus.FINISHED) && !taskEntity.getStatus().equals(TaskStatus.IN_PROGRESS)){
+        } else if (status.equals(TaskStatus.FINISHED) && !task.getStatus().equals(TaskStatus.IN_PROGRESS)){
             throw new ConflictException("task should be in progress before moving to finished");
         }
 
 
-        taskEntity.setStatus(status);
-        taskDAO.save(taskEntity);
+        task.setStatus(status);
+        taskRepository.updateStatus(taskId, status);
+    }
+
+    private void validateTaskId(Long taskId){
+        if (taskRepository.findById(taskId) == null) {
+            throw new ConflictException("task not found");
+        }
+    }
+    private void validateUserId(Long userId){
+        if (userRepository.findById(userId) == null) {
+            throw new ConflictException("user not found");
+        }
+
     }
 }

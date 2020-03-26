@@ -2,6 +2,7 @@ package com.kzadha.security;
 
 
 import com.kzadha.model.User;
+import com.kzadha.model.enums.UserRole;
 import io.jsonwebtoken.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +56,7 @@ public class JwtTokenProvider {
                 .getBody();
         claims.get("role");
         return User.builder().id(Long.parseLong(claims.getSubject()))
-//                .roles(UserRole.valueOf(claims.get("roles").toString()))
+                .roles(UserRole.valueOf(claims.get("role").toString()))
                 .build();
     }
 

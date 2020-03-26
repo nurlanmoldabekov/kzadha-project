@@ -1,15 +1,23 @@
 package com.kzadha.mapper;
 
-import com.kzadha.entity.TaskEntity;
 import com.kzadha.model.Task;
-import org.mapstruct.Mapper;
+import com.kzadha.model.enums.TaskStatus;
+import org.springframework.jdbc.core.RowMapper;
 
-import java.util.List;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
-@Mapper(componentModel = "spring")
-public interface TaskMapper {
-    TaskEntity toEntity(Task model);
-    List<TaskEntity> toEntityList(List<Task> models);
-    Task toModel(TaskEntity entity);
-    List<Task> toModelList(List<TaskEntity> entities);
+public class TaskMapper implements RowMapper {
+    @Override
+    public Task mapRow(ResultSet rs, int i) throws SQLException {
+
+        return Task.builder().id(rs.getLong("id"))
+                .createDate(rs.getDate("dcreatedate"))
+                .updateDate(rs.getDate("dupdatedate"))
+                .userId(rs.getLong("nuserid"))
+                .executorUserId(rs.getLong("nexecutoruserid"))
+                .description(rs.getString("vdescription"))
+                .status(TaskStatus.valueOf(rs.getString("vstatus")))
+                .build();
+    }
 }

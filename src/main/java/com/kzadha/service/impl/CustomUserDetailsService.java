@@ -1,9 +1,8 @@
 package com.kzadha.service.impl;
 
 
-import com.kzadha.dao.UserDAO;
+import com.kzadha.dao.UserRepository;
 import com.kzadha.exception.UnauthorizedException;
-import com.kzadha.mapper.UserMapper;
 import com.kzadha.model.User;
 import com.kzadha.security.UserPrincipal;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,17 +17,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class CustomUserDetailsService implements UserDetailsService {
 
     @Autowired
-    private UserDAO userDao;
-
-    @Autowired
-    private UserMapper mapper;
+    private UserRepository userDao;
 
     @Override
     @Transactional
     public UserDetails loadUserByUsername(String email)
             throws UsernameNotFoundException {
 
-        User user = mapper.toModel(userDao.findByEmail(email));
+        User user = userDao.findByEmail(email);
         if (user == null) {
             throw new UsernameNotFoundException("User not found with username or email : " + email);
         }
@@ -38,7 +34,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Transactional
     public UserDetails loadUserById(Long id) {
-        User user = mapper.toModel(userDao.findById(id).orElse(null));
+        User user = userDao.findById(id);
         if (user == null) {
             throw new UnauthorizedException(String.format("User with id = %s not found", id));
         }

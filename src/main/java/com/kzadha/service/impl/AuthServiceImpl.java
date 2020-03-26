@@ -1,7 +1,7 @@
 package com.kzadha.service.impl;
 
 
-import com.kzadha.dao.UserDAO;
+import com.kzadha.dao.UserRepository;
 import com.kzadha.model.User;
 import com.kzadha.model.json.JwtAuthenticationResponse;
 import com.kzadha.model.json.LoginRequest;
@@ -33,7 +33,7 @@ public class AuthServiceImpl implements AuthService {
     private JwtTokenProvider tokenProvider;
 
     @Autowired
-    private UserDAO userDao;
+    private UserRepository userRepository;
 
 
     @Override
@@ -56,7 +56,7 @@ public class AuthServiceImpl implements AuthService {
     public JwtAuthenticationResponse authUserWithoutCredentials(User user) {
 
         List<GrantedAuthority> authorities = new ArrayList<>();
-        authorities.add( new SimpleGrantedAuthority("USER"));
+        authorities.add( new SimpleGrantedAuthority("WORKER"));
         UserPrincipal userPrincipal = UserPrincipal.create(user);
         Authentication authentication = new UsernamePasswordAuthenticationToken(userPrincipal, null, authorities);
         SecurityContextHolder.getContext().setAuthentication(authentication);

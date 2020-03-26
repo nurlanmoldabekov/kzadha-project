@@ -1,7 +1,6 @@
 package com.kzadha.service.impl;
 
-import com.kzadha.dao.UserDAO;
-import com.kzadha.mapper.UserMapper;
+import com.kzadha.dao.UserRepository;
 import com.kzadha.model.User;
 import com.kzadha.service.RegistrationService;
 import org.slf4j.Logger;
@@ -10,7 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 
 @Service
 public class RegistrationServiceImpl implements RegistrationService {
@@ -19,9 +17,8 @@ public class RegistrationServiceImpl implements RegistrationService {
     private static final String GOOGLE_CAPTCHA_URL = "https://www.google.com/recaptcha/api/siteverify?secret=%s&response=%s";
 
     @Autowired
-    private UserDAO userDao;
-    @Autowired
-    private UserMapper mapper;
+    private UserRepository userDao;
+
     @Autowired
     private BCryptPasswordEncoder bCryptPasswordEncoder;
 
@@ -31,7 +28,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     public void registerUser(User user) {
         logger.info("Creating user");
         user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
-        userDao.save(mapper.toEntity(user));
+        userDao.insert(user);
 
 
     }

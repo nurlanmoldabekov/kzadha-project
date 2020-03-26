@@ -1,15 +1,20 @@
 package com.kzadha.mapper;
 
 import com.kzadha.model.User;
-import com.kzadha.entity.UserEntity;
-import org.mapstruct.Mapper;
+import com.kzadha.model.enums.UserRole;
+import org.springframework.jdbc.core.RowMapper;
 
-import java.util.List;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
-@Mapper(componentModel = "spring")
-public interface UserMapper {
-    UserEntity toEntity(User model);
-    List<UserEntity> toEntityList(List<User> models);
-    User toModel(UserEntity entity);
-    List<User> toModelList(List<UserEntity> entities);
+public class UserMapper implements RowMapper {
+    @Override
+    public User mapRow(ResultSet rs, int i) throws SQLException {
+        return User.builder().id(rs.getLong("id"))
+                .email(rs.getString("vemail"))
+                .password(rs.getString("vpassword"))
+                .name(rs.getString("vname"))
+                .roles(UserRole.valueOf(rs.getString("vroles")))
+                .build();
+    }
 }
